@@ -1,0 +1,57 @@
+#!/bin/sh
+
+# System Update and install
+echo "Updating system..."
+apk update && apk upgrade --no-cache
+
+echo "Installing essential packages..."
+apk add --no-cache openssh sshpass bash curl perl
+
+# Creating SFTP User and Directory
+echo "Creating user and group..."
+addgroup -S sftpusers
+adduser -D -G sftpusers -h /home/sftpuser -s /bin/sh sftpuser
+echo "sftpuser:password" | chpasswd
+
+echo "Setting up directories for sftpuser..."
+mkdir -p /home/sftpuser/upload
+sed -i 's/\r$//' /tmp/create_file_on_sftp.sh
+mv /tmp/create_file_on_sftp.sh /home/sftpuser
+chown -R sftpuser:sftpusers /home/sftpuser
+chmod 755 /home/sftpuser
+chown sftpuser:sftpusers /home/sftpuser/upload
+
+# SSH Key Generation for SFTP User
+echo "Generating SSH key as sftpuser..."
+sudo -u sftpuser mkdir -p /home/sftpuser/.ssh
+sudo -u sftpuser ssh-keygen -t rsa -b 4096 -f /home/sftpuser/.ssh/id_rsa -N "" -C "sftpuser@$(hostname)"
+
+# SSH Service Configuration
+echo "Starting SSH service..."
+rc-update add sshd
+service sshd start
+
+# Install and Configure rkhunter
+echo "Downloading rkhunter..."
+wget https://sourceforge.net/projects/rkhunter/files/latest/download -O /tmp/rkhunter-1.4.6.tar.gz
+
+echo "Extracting rkhunter..."
+cd /tmp
+tar -xvzf rkhunter-1.4.6.tar.gz
+cd rkhunter-*
+
+echo "Installing rkhunter..."
+sudo ./installer.sh --install
+
+echo "Updating rkhunter..."
+sudo rkhunter --update
+
+# Perform rkhunter Security Check
+echo "Running rkhunter security check..."
+sudo rkhunter --check
+
+echo "Setup complete!"
+
+# Create cron job
+chmod +x /home/sftpuser/create_file_on_sftp.sh
+(crontab -l 2>/dev/null; echo "*/5 * * * * /home/sftpuser/create_file_on_sftp.sh") | crontab -
