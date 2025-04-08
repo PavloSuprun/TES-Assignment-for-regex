@@ -1,0 +1,16 @@
+version: '3'
+services:
+  collector:
+    build: ./collector
+    volumes:
+      - ./shared_logs:/home/python-log-collector-logs
+    network_mode: host
+
+  webapp:
+    build: ./webapp
+    volumes:
+      - ./shared_logs:/shared_logs
+    ports:
+      - "5000:5000"
+    depends_on:
+      - collector
