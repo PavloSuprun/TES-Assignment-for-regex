@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# CHANGE VALUES IF NEEDED
+MACHINES_COUNT = 3
+BASE_IP = "192.168.0.110"
+
+# Write machines count and base IP to files
+shared_path = "shared.sh"
+shared_content = File.read(shared_path)
+shared_content.gsub!(/MACHINES_COUNT=.*/, "MACHINES_COUNT=#{MACHINES_COUNT}")
+shared_content.gsub!(/BASE_IP=.*/, "BASE_IP=\"#{BASE_IP}\"")
+File.write(shared_path, shared_content)
+
+sftp_script_path = "create_file_on_sftp.sh"
+sftp_script_content = File.read(sftp_script_path)
+sftp_script_content.gsub!(/MACHINES_COUNT=.*/, "MACHINES_COUNT=#{MACHINES_COUNT}")
+sftp_script_content.gsub!(/BASE_IP=.*/, "BASE_IP=\"#{BASE_IP}\"")
+File.write(sftp_script_path, sftp_script_content)
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/alpine318"
+
+  (1..MACHINES_COUNT).each do |i|
+    config.vm.define "ALPINE-SFTP-#{i}" do |node|
+      node.vm.hostname = "ALPINE-SFTP-#{i}"
+
+      last_octet = BASE_IP.split('.').last.to_i
+      node_ip = "#{BASE_IP.split('.')[0..2].join('.')}.#{last_octet + i}"
+      node.vm.network "public_network", ip: node_ip
+
+      node.vm.provider "virtualbox" do |vb|
+        vb.memory = 256
+        vb.cpus = 1
+      end
+
+      node.vm.provision "file", source: "create_file_on_sftp.sh", destination: "/tmp/"
+      node.vm.provision "shell", path: "phase_1_init.sh"
+
+      # Use last machine as an orchestrator for later scripts
+      if i == MACHINES_COUNT
+        node.vm.provision "file", source: "shared.sh", destination: "/tmp/"
+        node.vm.provision "file", source: "phase_2_exchange_keys.sh", destination: "/tmp/"
+        node.vm.provision "file", source: "phase_2_disable_passwords.sh", destination: "/tmp/"
+        node.vm.provision "shell", path: "phase_2_orchestrator.sh"
+      end
+    end
+  end
+end
