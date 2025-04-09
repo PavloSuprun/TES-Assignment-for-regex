@@ -44,14 +44,15 @@ VMs will then be assigned incrementally from the base (e.g. `.111`, `.112`, etc.
 ---
 
 ### 3. Deploy the Virtual Machines
-
+```
 cd Vagrant-SFTPs
 vagrant up
-
+```
 ### 4. Run the Python Reporting App
-
+```
 cd python-report
 docker-compose up --build -d
+```
 The web app becomes accessible at:
 http://<host-ip>:5000
 
