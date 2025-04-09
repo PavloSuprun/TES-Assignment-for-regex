@@ -1,53 +1,58 @@
-# Project Documentation
+# SFTP Virtual Machines and Log Report System
 
-## Overview
-This repository contains a Bash script that demonstrates the usage of regular expressions and common Linux commands for text processing and system information retrieval.
+This repository provides a self-contained virtual environment with multiple Alpine Linux-based SFTP servers. Each machine automatically sends files to other nodes via SFTP, logs the interactions, performs basic security audits, and allows generating reports via a Python web application.
 
-## Script Functionality
-The `regex.sh` script performs the following tasks:
+## Repository Structure
 
-1. **Identify all grammatical forms of a surname**  
-   - Regular expression: `Супрун(а|у|ом|і|е)`
+- **`Vagrant-SFTPs/`**  
+  Contains Vagrant and provisioning scripts for spinning up any number of Alpine Linux 3.19 VMs with:
+  - SFTP servers
+  - SSH key-based access
+  - Scheduled Bash cronjob (runs every 5 minutes)
+  - `rkhunter` security auditing
 
-2. **Identify all grammatical forms of a given name**  
-   - Regular expression: `Павл(о|а|у|ом|і|е)`
+- **`python-report/`**  
+  A Dockerized Python app stack including:
+  - **Log Collector**: Connects to each SFTP host, parses logs and aggregates data
+  - **Web App**: Displays a summary for management with graphs and tables
+  - **Data Volume**: Logs and reports are stored in a local Docker volume
 
-3. **Match phone codes of major cities in a specific region**  
-   - Regular expression: `0432[-\s]?\d{3}[-\s]?\d{2}[-\s]?\d{2}`
-
-4. **Display a list of all system users with Bash as their default shell**  
-   - Command: `cat /etc/passwd | grep bash`
-
-5. **Show all lines from `/etc/group` that start with "daemon"**  
-   - Command: `grep "^daemon" /etc/group`
-
-6. **Show all lines from `/etc/group` that do not contain "daemon"**  
-   - Command: `grep -v "daemon" /etc/group`
-
-7. **Count the number of README files in the `/etc` directory, excluding files matching `README.a_string`**  
-   - Command: `find /etc -type f -name 'README' -not -name 'README.*' | wc -l`
-
-8. **List all files in the home directory that were modified in the last 10 hours**  
-   - Command: `find ~/ -type f -mmin -600`
+---
 
 ## Usage
-To run the script, execute the following command in the terminal:
-```bash
-bash regex.sh
-```
-Ensure that the script has execution permissions:
-```bash
-chmod +x regex.sh
-./regex.sh
-```
 
-## Requirements
-- Linux-based operating system
-- Bash shell
-- Utilities: `grep`, `awk`, `sed`, `find`
+### 1. Prerequisites
 
-## Contribution
-Contributions are welcome. If you find any issues or have suggestions for improvements, feel free to create a pull request.
+- [Vagrant](https://www.vagrantup.com/)
+- [VirtualBox](https://www.virtualbox.org/)
+- [Docker](https://www.docker.com/)
 
-## License
-This project is licensed under the MIT License.
+> All virtual machines are based on **Alpine Linux 3.19**  
+> SSH keys are generated and distributed automatically
+
+---
+
+### 2. Configure the Vagrant Project (Optional)
+
+Inside `Vagrant-SFTPs/Vagrantfile`, you can modify:
+
+- `MACHINE_COUNT` — number of VMs to create (default: 3)
+- `BASE_IP` — the base IP for the VM subnet (e.g. `192.168.0.100`)
+
+VMs will then be assigned incrementally from the base (e.g. `.111`, `.112`, etc.)
+
+---
+
+### 3. Deploy the Virtual Machines
+
+cd Vagrant-SFTPs
+vagrant up
+
+### 4. Run the Python Reporting App
+
+cd python-report
+docker-compose up --build -d
+The web app becomes accessible at:
+http://<host-ip>:5000
+
+All collected data is stored in a volume in the local project directory
